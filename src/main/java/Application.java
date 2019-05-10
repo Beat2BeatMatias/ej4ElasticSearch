@@ -1,5 +1,7 @@
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.delete.DeleteRequest;
@@ -17,7 +19,10 @@ import org.elasticsearch.common.xcontent.XContentType;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Queue;
 import java.util.UUID;
+
+import static spark.Spark.*;
 
 public class Application {
 
@@ -88,8 +93,8 @@ public class Application {
                 objectMapper.convertValue(getResponse.getSourceAsMap(), Item.class) : null;
     }
 
-    private static Item updateItemById(String id, Item item){
-        UpdateRequest updateRequest = new UpdateRequest(INDEX, TYPE, id)
+    private static Item updateItemById(Item item){
+        UpdateRequest updateRequest = new UpdateRequest(INDEX, TYPE, item.getId())
                 .fetchSource(true);    // Fetch Object after its update
         try {
             String personJson = objectMapper.writeValueAsString(item);
@@ -115,26 +120,53 @@ public class Application {
     }
 
     public static void main(String[] args) throws IOException {
+        port(8080);
 
         makeConnection();
 
         System.out.println("Insertando un nuevo item");
-        Item item = new Item("MLA","Pelota", "MLA1055",1000,"ARS");
-        item = insertItem(item);
-        System.out.println("Person inserted --> " + item);
+        Item itemInitial = new Item("MLA","Pelota", "MLA1055",1000,"ARS");
+        insertItem(itemInitial);
 
-        System.out.println("Cambiar título...");
-        item.setTitle("Celular");
-        updateItemById(item.getId(),item);
-        System.out.println("Person updated  --> " + item);
+        get("/item/:item_id", (request, response) -> {
+            response.type("application/json");
+            String itemId = request.params("item_id");
+            JsonElement gson=new Gson().toJsonTree(getItemById(itemId));
+            return new Gson().toJson(new StandarResponse(StatusResponse.SUCCESS,gson));
+        });
 
-        System.out.println("Obteniendo item...");
-        Item itemFromDB = getItemById(item.getId());
-        System.out.println("Item from DB  --> " + itemFromDB);
+        put("/item", (request, response) -> {
+            response.type("application/json");
+            Item item = new Gson().fromJson(request.body(), Item.class);
+            if(getItemById(item.getId())!=null) {
+                Item itemActualizado = updateItemById(item);
+                JsonElement gson = new Gson().toJsonTree(itemActualizado);
+                return new Gson().toJson(new StandarResponse(StatusResponse.SUCCESS, gson));
+            }else{
+                return new Gson().toJson(new StandarResponse(StatusResponse.ERROR,"No existe el item a modificar..."));
+            }
+        });
 
-        System.out.println("Borrando item...");
-        deletePersonById(itemFromDB.getId());
-        System.out.println("Person Deleted");
-        closeConnection();
+
+        post("/item", (request, response) -> {
+            response.type("application/json");
+            Item item  = new Gson().fromJson(request.body(), Item.class);
+            Item itemAgregado=insertItem(item);
+            JsonElement gson=new Gson().toJsonTree(itemAgregado);
+            return new Gson().toJson(new StandarResponse(StatusResponse.SUCCESS,gson));
+        });
+
+        delete("/item/:item_id", (request, response) -> {
+            response.type("application/json");
+            String itemId = request.params("item_id");
+            if(getItemById(itemId)!=null) {
+                deletePersonById(itemId);
+                return new Gson().toJson(new StandarResponse(StatusResponse.SUCCESS));
+            }
+            else {
+                return new Gson().toJson(new StandarResponse(StatusResponse.ERROR));
+            }
+        });
+
     }
 }
