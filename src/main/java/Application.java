@@ -121,12 +121,12 @@ public class Application {
         System.out.println("Insertando un nuevo item");
         Item item = new Item("MLA","Pelota", "MLA1055",1000,"ARS");
         item = insertItem(item);
-        System.out.println("Person inserted --> " + item);
+        System.out.println("Item inserted --> " + item);
 
         System.out.println("Cambiar título...");
         item.setTitle("Celular");
         updateItemById(item.getId(),item);
-        System.out.println("Person updated  --> " + item);
+        System.out.println("Item updated  --> " + item);
 
         System.out.println("Obteniendo item...");
         Item itemFromDB = getItemById(item.getId());
@@ -134,7 +134,7 @@ public class Application {
 
         System.out.println("Borrando item...");
         deletePersonById(itemFromDB.getId());
-        System.out.println("Person Deleted");
+        System.out.println("Item Deleted");
         closeConnection();
     }
 }
